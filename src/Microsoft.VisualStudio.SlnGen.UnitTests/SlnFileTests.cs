@@ -1458,6 +1458,178 @@ EndGlobal
                 false);
         }
 
+        [Fact]
+        public void SaveSlnx_SingleProject_GeneratesValidSlnxFile()
+        {
+            SlnProject projectA = new SlnProject
+            {
+                Configurations = new[] { "Debug", "Release" },
+                FullPath = Path.Combine(TestRootPath, "ProjectA", "ProjectA.csproj"),
+                IsMainProject = true,
+                Name = "ProjectA",
+                Platforms = new[] { "AnyCPU" },
+                ProjectGuid = Guid.NewGuid(),
+                ProjectTypeGuid = Guid.NewGuid(),
+            };
+
+            SlnFile slnFile = new SlnFile();
+            slnFile.AddProjects(new[] { projectA });
+
+            string solutionFilePath = GetTempFileName(".slnx");
+            slnFile.SaveSlnx(solutionFilePath, useFolders: false);
+
+            File.Exists(solutionFilePath).ShouldBeTrue();
+
+            string content = File.ReadAllText(solutionFilePath);
+            content.ShouldContain("<Solution");
+            content.ShouldContain("ProjectA");
+            content.ShouldContain(".csproj");
+        }
+
+        [Fact]
+        public void SaveSlnx_MultipleProjects_AllProjectsIncluded()
+        {
+            SlnProject projectA = new SlnProject
+            {
+                Configurations = new[] { "Debug", "Release" },
+                FullPath = Path.Combine(TestRootPath, "ProjectA", "ProjectA.csproj"),
+                IsMainProject = true,
+                Name = "ProjectA",
+                Platforms = new[] { "AnyCPU" },
+                ProjectGuid = Guid.NewGuid(),
+                ProjectTypeGuid = Guid.NewGuid(),
+            };
+
+            SlnProject projectB = new SlnProject
+            {
+                Configurations = new[] { "Debug", "Release" },
+                FullPath = Path.Combine(TestRootPath, "ProjectB", "ProjectB.csproj"),
+                Name = "ProjectB",
+                Platforms = new[] { "x64" },
+                ProjectGuid = Guid.NewGuid(),
+                ProjectTypeGuid = Guid.NewGuid(),
+            };
+
+            SlnFile slnFile = new SlnFile();
+            slnFile.AddProjects(new[] { projectA, projectB });
+
+            string solutionFilePath = GetTempFileName(".slnx");
+            slnFile.SaveSlnx(solutionFilePath, useFolders: false);
+
+            string content = File.ReadAllText(solutionFilePath);
+            content.ShouldContain("ProjectA");
+            content.ShouldContain("ProjectB");
+        }
+
+        [Fact]
+        public void SaveSlnx_CreatesDirectoryIfNotExists()
+        {
+            DirectoryInfo directoryInfo = new DirectoryInfo(Path.Combine(TestRootPath, "a", "b", "c"));
+            directoryInfo.Exists.ShouldBeFalse();
+
+            string fullPath = Path.Combine(directoryInfo.FullName, Path.GetRandomFileName() + ".slnx");
+
+            SlnFile slnFile = new SlnFile();
+            slnFile.SaveSlnx(fullPath, useFolders: false);
+
+            File.Exists(fullPath).ShouldBeTrue();
+        }
+
+        [Fact]
+        public async System.Threading.Tasks.Task SaveSlnx_CanBeReadBySlnxSerializer()
+        {
+            SlnProject projectA = new SlnProject
+            {
+                Configurations = new[] { "Debug", "Release" },
+                FullPath = Path.Combine(TestRootPath, "ProjectA", "ProjectA.csproj"),
+                IsMainProject = true,
+                Name = "ProjectA",
+                Platforms = new[] { "AnyCPU", "x64" },
+                ProjectGuid = Guid.NewGuid(),
+                ProjectTypeGuid = Guid.NewGuid(),
+            };
+
+            SlnProject projectB = new SlnProject
+            {
+                Configurations = new[] { "Debug" },
+                FullPath = Path.Combine(TestRootPath, "ProjectB", "ProjectB.vbproj"),
+                Name = "ProjectB",
+                Platforms = new[] { "x64" },
+                ProjectGuid = Guid.NewGuid(),
+                ProjectTypeGuid = Guid.NewGuid(),
+            };
+
+            SlnFile slnFile = new SlnFile()
+            {
+                Configurations = new[] { "Debug", "Release" },
+                Platforms = new[] { "Any CPU", "x64" },
+            };
+
+            slnFile.AddProjects(new[] { projectA, projectB });
+
+            string solutionFilePath = GetTempFileName(".slnx");
+            slnFile.SaveSlnx(solutionFilePath, useFolders: false);
+
+            // Read back using SolutionPersistence to verify the file is valid
+            SolutionPersistence.Model.SolutionModel model = await SolutionPersistence.Serializer.SolutionSerializers.SlnXml
+                .OpenAsync(solutionFilePath, System.Threading.CancellationToken.None);
+
+            model.ShouldNotBeNull();
+            model.SolutionProjects.Count.ShouldBe(2);
+
+            model.SolutionProjects.ShouldContain(p => p.FilePath.Contains("ProjectA"));
+            model.SolutionProjects.ShouldContain(p => p.FilePath.Contains("ProjectB"));
+        }
+
+        [Fact]
+        public async System.Threading.Tasks.Task SaveSlnx_WithConfigurations_ConfigurationsPreserved()
+        {
+            SlnProject projectA = new SlnProject
+            {
+                Configurations = new[] { "Debug", "Release" },
+                FullPath = Path.Combine(TestRootPath, "ProjectA", "ProjectA.csproj"),
+                IsMainProject = true,
+                Name = "ProjectA",
+                Platforms = new[] { "AnyCPU" },
+                ProjectGuid = Guid.NewGuid(),
+                ProjectTypeGuid = Guid.NewGuid(),
+            };
+
+            SlnFile slnFile = new SlnFile()
+            {
+                Configurations = new[] { "Debug", "Release", "Staging" },
+                Platforms = new[] { "Any CPU", "x64" },
+            };
+
+            slnFile.AddProjects(new[] { projectA });
+
+            string solutionFilePath = GetTempFileName(".slnx");
+            slnFile.SaveSlnx(solutionFilePath, useFolders: false);
+
+            SolutionPersistence.Model.SolutionModel model = await SolutionPersistence.Serializer.SolutionSerializers.SlnXml
+                .OpenAsync(solutionFilePath, System.Threading.CancellationToken.None);
+
+            model.BuildTypes.ShouldContain("Debug");
+            model.BuildTypes.ShouldContain("Release");
+            model.BuildTypes.ShouldContain("Staging");
+            model.Platforms.ShouldContain("Any CPU");
+            model.Platforms.ShouldContain("x64");
+        }
+
+        [Fact]
+        public void TryParseExistingSolution_SkipsSlnxFiles()
+        {
+            string solutionFilePath = GetTempFileName(".slnx");
+
+            // Create a valid .slnx file
+            SlnFile slnFile = new SlnFile();
+            slnFile.SaveSlnx(solutionFilePath, useFolders: false);
+
+            // TryParseExistingSolution should return false for .slnx files
+            SlnFile.TryParseExistingSolution(solutionFilePath, out Guid solutionGuid, out _).ShouldBeFalse();
+            solutionGuid.ShouldBe(default);
+        }
+
         private string GetSolutionFilePath(Project[] projects)
         {
             ProgramArguments programArguments = new ()

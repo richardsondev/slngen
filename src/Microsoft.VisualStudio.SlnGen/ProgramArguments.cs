@@ -297,6 +297,16 @@ Examples:
         public bool Version { get; set; }
 
         /// <summary>
+        /// Gets or sets a value indicating whether to generate a .slnx file instead of a .sln file.
+        /// </summary>
+        [Option(
+            "--slnx",
+            CommandOptionType.MultipleValue,
+            ValueName = "true",
+            Description = "Generate a .slnx (XML-based) solution file instead of a classic .sln file. Requires Visual Studio 17.13+ or .NET 9+ SDK.  Default: false")]
+        public string[] UseSlnx { get; set; }
+
+        /// <summary>
         /// Gets or sets the Visual Studio version to include in the solution file header.
         /// </summary>
         [Option(
@@ -321,6 +331,27 @@ Examples:
         /// </summary>
         /// <returns>true if folders should be collapsed, otherwise false.</returns>
         public bool EnableCollapseFolders() => GetBoolean(CollapseFolders);
+
+        /// <summary>
+        /// Gets a value indicating whether or not to generate a .slnx file instead of a .sln file.
+        /// </summary>
+        /// <param name="slnGenUseSlnxPropertyValue">The SlnGenUseSlnx property value if it exists.</param>
+        /// <returns>true if a .slnx file should be generated, otherwise false.</returns>
+        public bool EnableSlnx(string slnGenUseSlnxPropertyValue)
+        {
+            bool? enableSlnx = TryGetBoolean(UseSlnx);
+            if (enableSlnx != null)
+            {
+                return enableSlnx.Value;
+            }
+
+            if (bool.TryParse(slnGenUseSlnxPropertyValue, out bool result))
+            {
+                return result;
+            }
+
+            return false;
+        }
 
         /// <summary>
         /// Gets a value indicating whether or not folders should be created in the solution.

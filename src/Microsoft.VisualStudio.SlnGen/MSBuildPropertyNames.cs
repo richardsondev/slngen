@@ -144,5 +144,10 @@ namespace Microsoft.VisualStudio.SlnGen
         /// Represents the SlnGenIsBuildable property.
         /// </summary>
         public const string SlnGenIsBuildable = nameof(SlnGenIsBuildable);
+
+        /// <summary>
+        /// Represents the SlnGenUseSlnx property. When set to true, generates a .slnx file instead of a .sln file.
+        /// </summary>
+        public const string SlnGenUseSlnx = nameof(SlnGenUseSlnx);
     }
 }
