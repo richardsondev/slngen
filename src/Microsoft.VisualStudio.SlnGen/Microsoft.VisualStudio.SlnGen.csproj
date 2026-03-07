@@ -7,7 +7,8 @@
     <IsTool>true</IsTool>
     <NoWarn>$(NoWarn);NU5128;MSB3270</NoWarn>
     <Prefer32Bit>false</Prefer32Bit>
-    <RollForward>LatestMinor</RollForward>
+    <RollForward Condition="'$(TargetFramework)' == 'net10.0'">LatestMajor</RollForward>
+    <RollForward Condition="'$(TargetFramework)' != 'net10.0'">LatestMinor</RollForward>
     <ServerGarbageCollection>true</ServerGarbageCollection>
     <ConcurrentGarbageCollection>false</ConcurrentGarbageCollection>
   </PropertyGroup>
