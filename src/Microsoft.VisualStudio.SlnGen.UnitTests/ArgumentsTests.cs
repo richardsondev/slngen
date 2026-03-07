@@ -113,6 +113,27 @@ namespace Microsoft.VisualStudio.SlnGen.UnitTests
             ignoreMainProject.ShouldBe(true);
         }
 
+        [Theory]
+        [InlineData(new[] { "true" }, "false", true)]
+        [InlineData(new[] { "false" }, "true", false)]
+        [InlineData(null, "true", true)]
+        [InlineData(null, "false", false)]
+        [InlineData(null, "True", true)]
+        [InlineData(null, null, false)]
+        [InlineData(null, "", false)]
+        [InlineData(null, "invalid", false)]
+        [InlineData(new string[0], "true", true)]
+        [InlineData(new[] { "true", "false" }, "true", false)]
+        public void EnableSlnx(string[] useSlnx, string slnGenUseSlnxPropertyValue, bool expected)
+        {
+            ProgramArguments arguments = new ProgramArguments
+            {
+                UseSlnx = useSlnx,
+            };
+
+            arguments.EnableSlnx(slnGenUseSlnxPropertyValue).ShouldBe(expected);
+        }
+
         [Fact]
         public void ExcludePaths()
         {
