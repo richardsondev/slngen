@@ -24,6 +24,35 @@ slngen --help
 
 More documentation is available at [https://microsoft.github.io/slngen/](https://microsoft.github.io/slngen/).
 
+## Generating .slnx Files (XML-based Solution Format)
+
+SlnGen supports generating `.slnx` files — the new XML-based solution format introduced in Visual Studio 17.13+ and .NET 9+ SDK. The `.slnx` format is a simplified, more readable replacement for the traditional `.sln` format.
+
+### Requirements
+- Visual Studio 17.13 or later, or .NET 9+ SDK
+
+### CLI Usage
+
+```
+slngen --slnx
+```
+
+### MSBuild Property
+
+```xml
+<PropertyGroup>
+  <SlnGenUseSlnx>true</SlnGenUseSlnx>
+</PropertyGroup>
+```
+
+Or pass it on the command line:
+
+```
+MSBuild /Restore /t:SlnGen /p:SlnGenUseSlnx=true
+```
+
+> **Note:** The `.slnx` format is still relatively new. If your team includes members on older versions of Visual Studio or the .NET SDK, you may want to continue using the classic `.sln` format.
+
 ## Getting Started - MSBuild Target
 [![NuGet package](https://img.shields.io/nuget/v/Microsoft.VisualStudio.SlnGen.svg)](https://nuget.org/packages/Microsoft.VisualStudio.SlnGen)
 [![NuGet downloads](https://img.shields.io/nuget/dt/Microsoft.VisualStudio.SlnGen.svg)](https://nuget.org/packages/Microsoft.VisualStudio.SlnGen)

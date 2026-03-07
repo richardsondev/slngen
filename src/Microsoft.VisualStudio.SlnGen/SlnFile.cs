@@ -3,6 +3,8 @@
 // Licensed under the MIT license.
 
 using Microsoft.Build.Evaluation;
+using Microsoft.VisualStudio.SolutionPersistence.Model;
+using Microsoft.VisualStudio.SolutionPersistence.Serializer;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
@@ -10,6 +12,7 @@ using System.IO;
 using System.Linq;
 using System.Text;
 using System.Text.RegularExpressions;
+using System.Threading;
 
 namespace Microsoft.VisualStudio.SlnGen
 {
@@ -156,7 +159,10 @@ namespace Microsoft.VisualStudio.SlnGen
                 }
 
                 var firstProjectName = firstProject.GetPropertyValueOrDefault(MSBuildPropertyNames.SlnGenProjectName, Path.GetFileName(firstProject.FullPath));
-                string solutionFileName = Path.ChangeExtension(firstProjectName, "sln");
+
+                string slnGenUseSlnxPropertyValue = firstProject.GetPropertyValueOrDefault(MSBuildPropertyNames.SlnGenUseSlnx, "false");
+                bool useSlnx = arguments.EnableSlnx(slnGenUseSlnxPropertyValue);
+                string solutionFileName = Path.ChangeExtension(firstProjectName, useSlnx ? "slnx" : "sln");
 
                 solutionFileFullPath = Path.Combine(solutionDirectoryFullPath!, solutionFileName);
             }
@@ -221,9 +227,18 @@ namespace Microsoft.VisualStudio.SlnGen
             string slnGenFoldersPropertyValue = firstProject.GetPropertyValueOrDefault(MSBuildPropertyNames.SlnGenFolders, "false");
             var enableFolders = arguments.EnableFolders(slnGenFoldersPropertyValue);
 
+            bool isSlnx = solutionFileFullPath.EndsWith(".slnx", StringComparison.OrdinalIgnoreCase);
+
             if (!logger.HasLoggedErrors)
             {
-                solution.Save(solutionFileFullPath, enableFolders, logger, arguments.EnableCollapseFolders(), arguments.EnableAlwaysBuild());
+                if (isSlnx)
+                {
+                    solution.SaveSlnx(solutionFileFullPath, enableFolders, logger, arguments.EnableCollapseFolders());
+                }
+                else
+                {
+                    solution.Save(solutionFileFullPath, enableFolders, logger, arguments.EnableCollapseFolders(), arguments.EnableAlwaysBuild());
+                }
             }
 
             return (solutionFileFullPath, customProjectTypeGuids.Count, solutionItems.Count, solution.SolutionGuid);
@@ -240,6 +255,12 @@ namespace Microsoft.VisualStudio.SlnGen
         {
             solutionGuid = default;
             projectGuidsByPath = default;
+
+            // .slnx files don't use project GUIDs, so skip parsing for them
+            if (path.EndsWith(".slnx", StringComparison.OrdinalIgnoreCase))
+            {
+                return false;
+            }
 
             bool foundSolutionGuid = false;
 
@@ -413,6 +434,170 @@ namespace Microsoft.VisualStudio.SlnGen
             using StreamWriter writer = new StreamWriter(fileStream, Encoding.UTF8);
 
             Save(path, writer, useFolders, logger, collapseFolders, alwaysBuild);
+        }
+
+        /// <summary>
+        /// Saves the Visual Studio solution as a .slnx (XML-based) file.
+        /// </summary>
+        /// <param name="path">The full path to the .slnx file to write to.</param>
+        /// <param name="useFolders">Specifies if folders should be created.</param>
+        /// <param name="logger">A <see cref="ISlnGenLogger" /> to use for logging.</param>
+        /// <param name="collapseFolders">An optional value indicating whether or not folders containing a single item should be collapsed into their parent folder.</param>
+        public void SaveSlnx(string path, bool useFolders, ISlnGenLogger logger = null, bool collapseFolders = false)
+        {
+            string directoryName = Path.GetDirectoryName(path);
+
+            if (!directoryName.IsNullOrWhiteSpace())
+            {
+                Directory.CreateDirectory(directoryName!);
+            }
+
+            SolutionModel solutionModel = new SolutionModel();
+
+            string rootPath = Path.GetDirectoryName(Path.GetFullPath(path)) !;
+
+            // Add configurations (build types)
+            HashSet<string> solutionConfigurations = Configurations != null && Configurations.Any()
+                ? new HashSet<string>(Configurations, StringComparer.OrdinalIgnoreCase)
+                : new HashSet<string>(_projects.SelectMany(i => i.Configurations).Where(i => !i.IsNullOrWhiteSpace()), StringComparer.OrdinalIgnoreCase);
+
+            foreach (string configuration in solutionConfigurations)
+            {
+                solutionModel.AddBuildType(configuration);
+            }
+
+            // Add platforms
+            HashSet<string> solutionPlatforms = Platforms != null && Platforms.Any()
+                ? new HashSet<string>(GetValidSolutionPlatforms(Platforms), StringComparer.OrdinalIgnoreCase)
+                : new HashSet<string>(GetValidSolutionPlatforms(_projects.SelectMany(i => i.Platforms)), StringComparer.OrdinalIgnoreCase);
+
+            foreach (string platform in solutionPlatforms)
+            {
+                solutionModel.AddPlatform(platform);
+            }
+
+            // Build the folder hierarchy
+            List<SlnProject> sortedProjects = _projects.OrderBy(i => i.IsMainProject ? 0 : 1).ThenBy(i => i.FullPath).ToList();
+
+            SlnHierarchy hierarchy = null;
+            if (useFolders && sortedProjects.Any(i => !i.IsMainProject))
+            {
+                hierarchy = SlnHierarchy.CreateFromProjectDirectories(sortedProjects, SolutionItems, collapseFolders);
+            }
+            else if (sortedProjects.Any(i => !string.IsNullOrWhiteSpace(i.SolutionFolder)))
+            {
+                hierarchy = SlnHierarchy.CreateFromProjectSolutionFolder(sortedProjects, SolutionItems);
+            }
+
+            // Map SlnFolder hierarchy to SolutionModel folders
+            Dictionary<SlnFolder, SolutionFolderModel> folderMap = new Dictionary<SlnFolder, SolutionFolderModel>();
+
+            if (hierarchy != null)
+            {
+                foreach (SlnFolder folder in hierarchy.Folders)
+                {
+                    if (folder == hierarchy.RootFolder)
+                    {
+                        // Root folder solution items go into a top-level "Solution Items" folder
+                        if (folder.SolutionItems.Count > 0)
+                        {
+                            SolutionFolderModel solutionItemsFolder = solutionModel.AddFolder("/Solution Items/");
+                            foreach (string item in folder.SolutionItems)
+                            {
+                                string relativePath = item.ToRelativePath(rootPath).Replace('\\', '/');
+                                if (!string.IsNullOrWhiteSpace(relativePath))
+                                {
+                                    solutionItemsFolder.AddFile(relativePath);
+                                }
+                            }
+                        }
+
+                        continue;
+                    }
+
+                    // Create the folder path for nested hierarchy
+                    string folderPath = "/" + folder.Name + "/";
+                    SolutionFolderModel slnxFolder;
+
+                    if (folder.Parent != null && folder.Parent != hierarchy.RootFolder && folderMap.TryGetValue(folder.Parent, out SolutionFolderModel parentFolder))
+                    {
+                        // The SolutionModel.AddFolder path can be hierarchical - create under parent
+                        folderPath = parentFolder.Path + folder.Name + "/";
+                        slnxFolder = solutionModel.AddFolder(folderPath);
+                    }
+                    else
+                    {
+                        slnxFolder = solutionModel.AddFolder(folderPath);
+                    }
+
+                    folderMap[folder] = slnxFolder;
+
+                    // Add solution items to this folder
+                    foreach (string item in folder.SolutionItems)
+                    {
+                        string relativePath = item.ToRelativePath(rootPath).Replace('\\', '/');
+                        if (!string.IsNullOrWhiteSpace(relativePath))
+                        {
+                            slnxFolder.AddFile(relativePath);
+                        }
+                    }
+                }
+            }
+            else
+            {
+                // No hierarchy - add solution items as a top-level folder
+                foreach (var solutionItems in _solutionItems)
+                {
+                    if (solutionItems.Value.SolutionItems.Any())
+                    {
+                        SolutionFolderModel itemsFolder = solutionModel.AddFolder("/" + solutionItems.Key + "/");
+                        foreach (string item in solutionItems.Value.SolutionItems)
+                        {
+                            string relativePath = item.ToRelativePath(rootPath).Replace('\\', '/');
+                            if (!string.IsNullOrWhiteSpace(relativePath))
+                            {
+                                itemsFolder.AddFile(relativePath);
+                            }
+                        }
+                    }
+                }
+            }
+
+            // Add projects
+            foreach (SlnProject project in sortedProjects)
+            {
+                if (project.IsSharedProject)
+                {
+                    continue;
+                }
+
+                string projectRelativePath = project.FullPath.ToRelativePath(rootPath);
+
+                // Determine the parent folder for this project
+                SolutionFolderModel projectFolder = null;
+
+                if (hierarchy != null)
+                {
+                    foreach (var kvp in folderMap)
+                    {
+                        if (kvp.Key.Projects.Contains(project))
+                        {
+                            projectFolder = kvp.Value;
+                            break;
+                        }
+                    }
+                }
+
+                SolutionProjectModel slnxProject = solutionModel.AddProject(projectRelativePath, null, projectFolder);
+
+                if (!string.IsNullOrWhiteSpace(project.Name) &&
+                    !string.Equals(project.Name, Path.GetFileNameWithoutExtension(project.FullPath), StringComparison.OrdinalIgnoreCase))
+                {
+                    slnxProject.DisplayName = project.Name;
+                }
+            }
+
+            SolutionSerializers.SlnXml.SaveAsync(path, solutionModel, CancellationToken.None).GetAwaiter().GetResult();
         }
 
         /// <summary>
