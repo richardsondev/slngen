@@ -478,6 +478,12 @@ namespace Microsoft.VisualStudio.SlnGen
             return new SlnSolutionWriter();
         }
 
+        /// <summary>
+        /// Normalizes platform names to valid Visual Studio solution platform values.
+        /// Unrecognized platforms are excluded; if none remain, defaults to "Any CPU".
+        /// </summary>
+        /// <param name="platforms">The platform names to normalize.</param>
+        /// <returns>An <see cref="IEnumerable{String}" /> of valid solution platform names.</returns>
         internal static IEnumerable<string> GetValidSolutionPlatforms(IEnumerable<string> platforms)
         {
             List<string> values = platforms
@@ -503,6 +509,14 @@ namespace Microsoft.VisualStudio.SlnGen
             return values.Any() ? values : new List<string> { "Any CPU" };
         }
 
+        /// <summary>
+        /// Attempts to find a matching project configuration for the given solution configuration.
+        /// </summary>
+        /// <param name="solutionConfiguration">The solution-level configuration name (e.g. "Debug").</param>
+        /// <param name="project">The project to match against.</param>
+        /// <param name="alwaysBuild">When true, returns the first project configuration even if no exact match is found.</param>
+        /// <param name="projectSolutionConfiguration">Receives the matched or fallback project configuration.</param>
+        /// <returns>true if an exact match was found or <paramref name="alwaysBuild" /> is true; otherwise false.</returns>
         internal static bool TryGetProjectSolutionConfiguration(string solutionConfiguration, SlnProject project, bool alwaysBuild, out string projectSolutionConfiguration)
         {
             foreach (string projectConfiguration in project.Configurations)
@@ -520,6 +534,15 @@ namespace Microsoft.VisualStudio.SlnGen
             return alwaysBuild;
         }
 
+        /// <summary>
+        /// Attempts to find a matching project platform for the given solution platform,
+        /// applying standard Visual Studio platform aliasing rules (e.g. Win32 ↔ x86, amd64 ↔ x64).
+        /// </summary>
+        /// <param name="solutionPlatform">The solution-level platform name (e.g. "Any CPU").</param>
+        /// <param name="project">The project to match against.</param>
+        /// <param name="projectSolutionPlatform">Receives the platform name for the solution configuration mapping.</param>
+        /// <param name="projectBuildPlatform">Receives the platform name for the build configuration mapping.</param>
+        /// <returns>true if a compatible platform was found; otherwise false.</returns>
         internal static bool TryGetProjectSolutionPlatform(string solutionPlatform, SlnProject project, out string projectSolutionPlatform, out string projectBuildPlatform)
         {
             projectSolutionPlatform = null;

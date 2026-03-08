@@ -2127,6 +2127,140 @@ EndGlobal
             solutionFileFullPath.ShouldBe(explicitPath);
         }
 
+        [Fact]
+        public void SaveSlnx_WithSolutionItems_AndFolders()
+        {
+            SlnProject projectA = new SlnProject
+            {
+                Configurations = new[] { "Debug" },
+                FullPath = Path.Combine(TestRootPath, "src", "ProjectA", "ProjectA.csproj"),
+                IsMainProject = true,
+                Name = "ProjectA",
+                Platforms = new[] { "AnyCPU" },
+                ProjectGuid = Guid.NewGuid(),
+                ProjectTypeGuid = Guid.NewGuid(),
+            };
+
+            SlnProject projectB = new SlnProject
+            {
+                Configurations = new[] { "Debug" },
+                FullPath = Path.Combine(TestRootPath, "src", "ProjectB", "ProjectB.csproj"),
+                Name = "ProjectB",
+                Platforms = new[] { "AnyCPU" },
+                ProjectGuid = Guid.NewGuid(),
+                ProjectTypeGuid = Guid.NewGuid(),
+            };
+
+            string readmePath = Path.Combine(TestRootPath, "README.md");
+            File.WriteAllText(readmePath, "# Test");
+
+            SlnFile slnFile = new SlnFile();
+            slnFile.AddProjects(new[] { projectA, projectB });
+            slnFile.AddSolutionItems(new[] { readmePath });
+
+            string solutionFilePath = Path.Combine(TestRootPath, "test.slnx");
+            slnFile.SaveSlnx(solutionFilePath, useFolders: true);
+
+            string content = File.ReadAllText(solutionFilePath);
+            content.ShouldContain("ProjectA");
+            content.ShouldContain("ProjectB");
+            content.ShouldContain("README.md");
+            content.ShouldContain("Solution Items");
+        }
+
+        [Theory]
+        [InlineData("test.slnx")]
+        [InlineData("test.SLNX")]
+        [InlineData("test.Slnx")]
+        [InlineData("test.sln")]
+        [InlineData("test.SLN")]
+        public void CreateWriter_ReturnsCorrectWriterForExtension(string fileName)
+        {
+            ISolutionWriter writer = SlnFile.CreateWriter(fileName);
+
+            if (fileName.EndsWith(".slnx", StringComparison.OrdinalIgnoreCase))
+            {
+                writer.FileExtension.ShouldBe(".slnx");
+                writer.SupportsGuidPersistence.ShouldBeFalse();
+            }
+            else
+            {
+                writer.FileExtension.ShouldBe(".sln");
+                writer.SupportsGuidPersistence.ShouldBeTrue();
+            }
+        }
+
+        [Fact]
+        public async System.Threading.Tasks.Task SaveSlnx_DeepFolderHierarchy_FiveLevels()
+        {
+            SlnProject mainProject = new SlnProject
+            {
+                Configurations = new[] { "Debug" },
+                FullPath = Path.Combine(TestRootPath, "src", "Main", "Main.csproj"),
+                IsMainProject = true,
+                Name = "Main",
+                Platforms = new[] { "AnyCPU" },
+                ProjectGuid = Guid.NewGuid(),
+                ProjectTypeGuid = Guid.NewGuid(),
+            };
+
+            // 5 levels deep: src/services/internal/api/v2/Deep.csproj
+            SlnProject deepProject = new SlnProject
+            {
+                Configurations = new[] { "Debug" },
+                FullPath = Path.Combine(TestRootPath, "src", "services", "internal", "api", "v2", "Deep.csproj"),
+                Name = "Deep",
+                Platforms = new[] { "AnyCPU" },
+                ProjectGuid = Guid.NewGuid(),
+                ProjectTypeGuid = Guid.NewGuid(),
+            };
+
+            // Second branch to force a real hierarchy (not just a single chain)
+            SlnProject testProject = new SlnProject
+            {
+                Configurations = new[] { "Debug" },
+                FullPath = Path.Combine(TestRootPath, "tests", "UnitTests", "UnitTests.csproj"),
+                Name = "UnitTests",
+                Platforms = new[] { "AnyCPU" },
+                ProjectGuid = Guid.NewGuid(),
+                ProjectTypeGuid = Guid.NewGuid(),
+            };
+
+            SlnFile slnFile = new SlnFile();
+            slnFile.AddProjects(new[] { mainProject, deepProject, testProject });
+
+            string solutionFilePath = Path.Combine(TestRootPath, "deep.slnx");
+            slnFile.SaveSlnx(solutionFilePath, useFolders: true, collapseFolders: false);
+
+            SolutionPersistence.Model.SolutionModel model = await SolutionPersistence.Serializer.SolutionSerializers.SlnXml
+                .OpenAsync(solutionFilePath, System.Threading.CancellationToken.None);
+
+            // Deep project should be nested in the hierarchy
+            SolutionPersistence.Model.SolutionProjectModel deepModel = model.SolutionProjects
+                .FirstOrDefault(p => p.FilePath.Contains("Deep.csproj"));
+            deepModel.ShouldNotBeNull();
+            deepModel.Parent.ShouldNotBeNull();
+
+            // Walk up to verify multiple nesting levels exist
+            int depth = 0;
+            SolutionPersistence.Model.SolutionFolderModel current = deepModel.Parent;
+            while (current != null)
+            {
+                depth++;
+                current = current.Parent;
+            }
+
+            // Should have at least 4 levels (services/internal/api/v2 under src)
+            depth.ShouldBeGreaterThanOrEqualTo(4);
+
+            // UnitTests should also be nested under tests
+            SolutionPersistence.Model.SolutionProjectModel testModel = model.SolutionProjects
+                .FirstOrDefault(p => p.FilePath.Contains("UnitTests.csproj"));
+            testModel.ShouldNotBeNull();
+            testModel.Parent.ShouldNotBeNull();
+            testModel.Parent.Path.ShouldContain("tests");
+        }
+
         private string GetSolutionFilePath(Project[] projects)
         {
             ProgramArguments programArguments = new ()

@@ -39,8 +39,12 @@ namespace Microsoft.VisualStudio.SlnGen
         }
 
         /// <summary>
-        /// Writes the solution to the specified <see cref="TextWriter" />. Used for testing.
+        /// Writes the solution content to the specified <see cref="TextWriter" />.
         /// </summary>
+        /// <param name="solution">The <see cref="SlnFile" /> containing the solution data.</param>
+        /// <param name="rootPath">The root path used to compute relative project paths.</param>
+        /// <param name="writer">The <see cref="TextWriter" /> to write the solution content to.</param>
+        /// <param name="options">The <see cref="SolutionWriteOptions" /> controlling generation behavior.</param>
         internal static void WriteCore(SlnFile solution, string rootPath, TextWriter writer, SolutionWriteOptions options)
         {
             writer.WriteLine(SlnFile.Header, solution.FileFormatVersion);
