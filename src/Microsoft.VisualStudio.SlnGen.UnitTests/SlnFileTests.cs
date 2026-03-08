@@ -1308,7 +1308,7 @@ EndGlobal
             StringBuilderTextWriter writer = new (new StringBuilder(), new List<string>());
 
             slnFile.AddProjects(projects);
-            SlnSolutionWriter.WriteCore(slnFile, solutionFilePath, writer, new SolutionWriteOptions { UseFolders = true, Logger = logger });
+            slnFile.Save(solutionFilePath, writer, useFolders: true, logger: logger);
 
             logger.Errors.Count.ShouldBe(0);
 
@@ -1342,7 +1342,7 @@ EndGlobal
 
             string solutionFilePath = Path.Combine(TestRootPath, "sample.sln");
             slnFile.AddProjects([project]);
-            SlnSolutionWriter.WriteCore(slnFile, solutionFilePath, writer, new SolutionWriteOptions { UseFolders = true, CollapseFolders = true, Logger = logger });
+            slnFile.Save(solutionFilePath, writer, useFolders: true, collapseFolders: true, logger: logger);
 
             logger.Errors.Count.ShouldBe(0);
             logger.Warnings.Count.ShouldBe(0);
@@ -2181,28 +2181,6 @@ EndGlobal
             content.ShouldContain("ProjectB");
             content.ShouldContain("README.md");
             content.ShouldContain("Solution Items");
-        }
-
-        [Theory]
-        [InlineData("test.slnx")]
-        [InlineData("test.SLNX")]
-        [InlineData("test.Slnx")]
-        [InlineData("test.sln")]
-        [InlineData("test.SLN")]
-        public void CreateWriter_ReturnsCorrectWriterForExtension(string fileName)
-        {
-            ISolutionWriter writer = SlnFile.CreateWriter(fileName);
-
-            if (fileName.EndsWith(".slnx", StringComparison.OrdinalIgnoreCase))
-            {
-                writer.FileExtension.ShouldBe(".slnx");
-                writer.SupportsGuidPersistence.ShouldBeFalse();
-            }
-            else
-            {
-                writer.FileExtension.ShouldBe(".sln");
-                writer.SupportsGuidPersistence.ShouldBeTrue();
-            }
         }
 
         [Fact]

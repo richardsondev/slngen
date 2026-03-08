@@ -15,16 +15,17 @@ namespace Microsoft.VisualStudio.SlnGen
     /// <summary>
     /// Writes a Visual Studio solution in the XML-based .slnx format.
     /// </summary>
-    internal sealed class SlnxSolutionWriter : ISolutionWriter
+    internal sealed class SlnxSolutionWriter
     {
-        /// <inheritdoc />
-        public string FileExtension => ".slnx";
-
-        /// <inheritdoc />
-        public bool SupportsGuidPersistence => false;
-
-        /// <inheritdoc />
-        public void Write(SlnFile solution, string path, SolutionWriteOptions options)
+        /// <summary>
+        /// Writes the specified solution to a .slnx file at the given path.
+        /// </summary>
+        /// <param name="solution">The solution model to write.</param>
+        /// <param name="path">The full path to the output .slnx file.</param>
+        /// <param name="useFolders">Whether to create hierarchical solution folders.</param>
+        /// <param name="collapseFolders">Whether to collapse single-item folders into their parent.</param>
+        /// <param name="logger">An optional logger for warnings.</param>
+        public void Write(SlnFile solution, string path, bool useFolders, bool collapseFolders, ISlnGenLogger logger = null)
         {
             string directoryName = Path.GetDirectoryName(path);
 
@@ -37,23 +38,36 @@ namespace Microsoft.VisualStudio.SlnGen
 
             string rootPath = Path.GetFullPath(path);
 
-            HashSet<string> solutionConfigurations = solution.GetSolutionConfigurations();
+            HashSet<string> solutionConfigurations = solution.Configurations != null && solution.Configurations.Any()
+                ? new HashSet<string>(solution.Configurations, StringComparer.OrdinalIgnoreCase)
+                : new HashSet<string>(solution.ProjectsInternal.SelectMany(i => i.Configurations).Where(i => !i.IsNullOrWhiteSpace()), StringComparer.OrdinalIgnoreCase);
 
             foreach (string configuration in solutionConfigurations)
             {
                 solutionModel.AddBuildType(configuration);
             }
 
-            HashSet<string> solutionPlatforms = solution.GetSolutionPlatforms();
+            HashSet<string> solutionPlatforms = solution.Platforms != null && solution.Platforms.Any()
+                ? new HashSet<string>(SlnFile.GetValidSolutionPlatforms(solution.Platforms), StringComparer.OrdinalIgnoreCase)
+                : new HashSet<string>(SlnFile.GetValidSolutionPlatforms(solution.ProjectsInternal.SelectMany(i => i.Platforms)), StringComparer.OrdinalIgnoreCase);
 
             foreach (string platform in solutionPlatforms)
             {
                 solutionModel.AddPlatform(platform);
             }
 
-            List<SlnProject> sortedProjects = solution.GetSortedProjects();
+            List<SlnProject> sortedProjects = solution.ProjectsInternal.OrderBy(i => i.IsMainProject ? 0 : 1).ThenBy(i => i.FullPath).ToList();
 
-            SlnHierarchy hierarchy = solution.BuildHierarchy(sortedProjects, options.UseFolders, options.CollapseFolders);
+            SlnHierarchy hierarchy = null;
+
+            if (useFolders && sortedProjects.Any(i => !i.IsMainProject))
+            {
+                hierarchy = SlnHierarchy.CreateFromProjectDirectories(sortedProjects, solution.SolutionItems, collapseFolders);
+            }
+            else if (sortedProjects.Any(i => !string.IsNullOrWhiteSpace(i.SolutionFolder)))
+            {
+                hierarchy = SlnHierarchy.CreateFromProjectSolutionFolder(sortedProjects, solution.SolutionItems);
+            }
 
             Dictionary<SlnFolder, SolutionFolderModel> folderMap = BuildFolderMap(solution, solutionModel, hierarchy, rootPath);
 
