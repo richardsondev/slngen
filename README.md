@@ -26,10 +26,9 @@ More documentation is available at [https://microsoft.github.io/slngen/](https:/
 
 ## Generating .slnx Files (XML-based Solution Format)
 
-SlnGen supports generating `.slnx` files — the new XML-based solution format introduced in Visual Studio 17.13+ and .NET 9+ SDK. The `.slnx` format is a simplified, more readable replacement for the traditional `.sln` format.
+SlnGen supports generating `.slnx` files — the new XML-based solution format introduced by Microsoft as a simplified, more readable replacement for the traditional `.sln` format.
 
-### Requirements
-- Visual Studio 17.13 or later, or .NET 9+ SDK
+> **Note:** SlnGen can generate `.slnx` files from any supported SDK, but the resulting solution file requires **Visual Studio 17.13+** or **.NET 9+ SDK** to open and build.
 
 ### CLI Usage
 

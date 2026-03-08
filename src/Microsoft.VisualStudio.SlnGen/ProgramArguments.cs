@@ -303,7 +303,7 @@ Examples:
             "--slnx",
             CommandOptionType.MultipleValue,
             ValueName = "true",
-            Description = "Generate a .slnx (XML-based) solution file instead of a classic .sln file. Requires Visual Studio 17.13+ or .NET 9+ SDK.  Default: false")]
+            Description = "Generate a .slnx (XML-based) solution file instead of a classic .sln file. The generated file requires Visual Studio 17.13+ or .NET 9+ SDK to open.  Default: false")]
         public string[] UseSlnx { get; set; }
 
         /// <summary>

@@ -97,7 +97,7 @@ Options:
                                         q[uiet], m[inimal], n[ormal], d[etailed], and diag[nostic].
   --version                           Display version information only.
   --vsversion                         Specifies that a version of Visual Studio should be included in the solution file. When specified with no value, the value will be set to the version of Visual Studio that is used to open the solution.
-  --slnx <true>                       Generate a .slnx (XML-based) solution file instead of a classic .sln file. Requires Visual Studio 17.13+ or .NET 9+ SDK.  Default: false
+  --slnx <true>                       Generate a .slnx (XML-based) solution file instead of a classic .sln file. The generated file requires Visual Studio 17.13+ or .NET 9+ SDK to open.  Default: false
   -?|-h|--help                        Show help information.
 ```
 
@@ -133,7 +133,7 @@ The following properties only apply when using SlnGen as an MSBuild target.
 | `SlnGenInheritGlobalProperties` | Indicates whether or not all global variables specified when loading the initial project should be passed around when loading project references. | `true` or `false` | `true` |
 | `SlnGenGlobalPropertiesToRemove` | Specifies a list of inherited global properties to remove when loading projects. | | |
 | `SlnGenBinLog` | Indicates whether or not SlnGen should emit a binary log. | `true` or `false` | `false` |
-| `SlnGenUseSlnx` | Indicates whether or not the generated solution file should use the `.slnx` (XML-based) format instead of the traditional `.sln` format. Requires Visual Studio 17.13+ or .NET 9+ SDK. | `true` or `false` | `false` |
+| `SlnGenUseSlnx` | Indicates whether or not the generated solution file should use the `.slnx` (XML-based) format instead of the traditional `.sln` format. The generated file requires Visual Studio 17.13+ or .NET 9+ SDK to open. | `true` or `false` | `false` |
 
 
 Command-line argument
