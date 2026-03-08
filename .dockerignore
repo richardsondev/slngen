@@ -1,0 +1,12 @@
+# Exclude files not needed in the Docker build context
+.git
+artifacts
+**/bin
+**/obj
+**/*.user
+**/*.suo
+docs
+assets
+.github
+.claude
+azure-pipelines*.yml

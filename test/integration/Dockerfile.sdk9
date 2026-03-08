@@ -1,0 +1,34 @@
+# Dockerfile for testing SlnGen against .NET SDK 9.0
+# Validates compatibility with latest .NET 9 SDK releases (e.g. 9.0.310, 9.0.311)
+# Pinned by sha256 digest — Dependabot will update both tag and digest.
+#
+# Stage 1: Build the SlnGen nupkgs from source
+# Stage 2: Install and validate SlnGen on .NET SDK 9.0
+
+# ------- builder stage -------
+FROM mcr.microsoft.com/dotnet/sdk:10.0.103@sha256:e362a8dbcd691522456da26a5198b8f3ca1d7641c95624fadc5e3e82678bd08a AS builder
+
+WORKDIR /repo
+COPY . .
+
+RUN dotnet restore SlnGen.sln /noautorsp
+RUN dotnet build   SlnGen.sln -c Release --no-restore /noautorsp "/p:Platform=Any CPU" \
+        /p:EnableSourceLink=false /p:EnableSourceControlManagerQueries=false || true
+RUN mkdir -p /packages && \
+    cp src/Microsoft.VisualStudio.SlnGen.Tool/bin/Release/Microsoft.VisualStudio.SlnGen.Tool.*.nupkg /packages/ && \
+    ls -la /packages/
+
+# ------- test stage: .NET 9 SDK -------
+FROM mcr.microsoft.com/dotnet/sdk:9.0.311@sha256:7ba12a329980dad8291cc7339ad073a8666ed949a78138eb8543a8cc8ccaa0de
+
+WORKDIR /testprojects
+
+# Copy the built nupkgs from the builder stage
+COPY --from=builder /packages /packages
+
+# Copy the integration test fixtures and validation script
+COPY test/integration/testprojects/ /testprojects/
+COPY test/integration/validate-slngen.sh /validate-slngen.sh
+RUN chmod +x /validate-slngen.sh
+
+RUN /validate-slngen.sh
