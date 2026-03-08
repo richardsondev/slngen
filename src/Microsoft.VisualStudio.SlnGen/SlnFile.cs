@@ -515,20 +515,11 @@ namespace Microsoft.VisualStudio.SlnGen
                         continue;
                     }
 
-                    // Create the folder path for nested hierarchy
-                    string folderPath = "/" + folder.Name + "/";
-                    SolutionFolderModel slnxFolder;
-
-                    if (folder.Parent != null && folder.Parent != hierarchy.RootFolder && folderMap.TryGetValue(folder.Parent, out SolutionFolderModel parentFolder))
-                    {
-                        // The SolutionModel.AddFolder path can be hierarchical - create under parent
-                        folderPath = parentFolder.Path + folder.Name + "/";
-                        slnxFolder = solutionModel.AddFolder(folderPath);
-                    }
-                    else
-                    {
-                        slnxFolder = solutionModel.AddFolder(folderPath);
-                    }
+                    // Build the full folder path by walking up the hierarchy to the root.
+                    // This is necessary because hierarchy.Folders uses post-order traversal
+                    // (children before parents), so parent folders may not be in folderMap yet.
+                    string folderPath = BuildSlnxFolderPath(folder, hierarchy);
+                    SolutionFolderModel slnxFolder = solutionModel.AddFolder(folderPath);
 
                     folderMap[folder] = slnxFolder;
 
@@ -911,6 +902,24 @@ namespace Microsoft.VisualStudio.SlnGen
             }
 
             writer.WriteLine("	EndProjectSection");
+        }
+
+        /// <summary>
+        /// Builds the full slnx folder path for a folder by walking up the hierarchy to the root.
+        /// Returns a path like "/src/Api/" for a folder named "Api" whose parent is "src".
+        /// </summary>
+        private static string BuildSlnxFolderPath(SlnFolder folder, SlnHierarchy hierarchy)
+        {
+            Stack<string> parts = new Stack<string>();
+            SlnFolder current = folder;
+
+            while (current != null && current != hierarchy.RootFolder)
+            {
+                parts.Push(current.Name);
+                current = current.Parent;
+            }
+
+            return "/" + string.Join("/", parts) + "/";
         }
 
         private string GetSharedProjectOptions(SlnProject project)

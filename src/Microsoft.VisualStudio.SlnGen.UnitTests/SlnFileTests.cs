@@ -1929,6 +1929,72 @@ EndGlobal
         }
 
         [Fact]
+        public async System.Threading.Tasks.Task SaveSlnx_NestedFolderHierarchy_MatchesSlnNesting()
+        {
+            // Validates that .slnx folder nesting matches .sln when collapseFolders=false
+            // (i.e. the full directory hierarchy is preserved with nested folders).
+            SlnProject mainProject = new SlnProject
+            {
+                Configurations = new[] { "Debug" },
+                FullPath = Path.Combine(TestRootPath, "src", "Core", "Core.csproj"),
+                IsMainProject = true,
+                Name = "Core",
+                Platforms = new[] { "AnyCPU" },
+                ProjectGuid = Guid.NewGuid(),
+                ProjectTypeGuid = Guid.NewGuid(),
+            };
+
+            SlnProject apiProject = new SlnProject
+            {
+                Configurations = new[] { "Debug" },
+                FullPath = Path.Combine(TestRootPath, "src", "Api", "Api.csproj"),
+                Name = "Api",
+                Platforms = new[] { "AnyCPU" },
+                ProjectGuid = Guid.NewGuid(),
+                ProjectTypeGuid = Guid.NewGuid(),
+            };
+
+            SlnProject testProject = new SlnProject
+            {
+                Configurations = new[] { "Debug" },
+                FullPath = Path.Combine(TestRootPath, "test", "ApiTests", "ApiTests.csproj"),
+                Name = "ApiTests",
+                Platforms = new[] { "AnyCPU" },
+                ProjectGuid = Guid.NewGuid(),
+                ProjectTypeGuid = Guid.NewGuid(),
+            };
+
+            SlnFile slnFile = new SlnFile();
+            slnFile.AddProjects(new[] { mainProject, apiProject, testProject });
+
+            string solutionFilePath = Path.Combine(TestRootPath, "nested.slnx");
+            slnFile.SaveSlnx(solutionFilePath, useFolders: true, collapseFolders: false);
+
+            SolutionPersistence.Model.SolutionModel model = await SolutionPersistence.Serializer.SolutionSerializers.SlnXml
+                .OpenAsync(solutionFilePath, System.Threading.CancellationToken.None);
+
+            // Api should be nested under src/Api, which is under src
+            SolutionPersistence.Model.SolutionProjectModel apiModel = model.SolutionProjects
+                .FirstOrDefault(p => p.FilePath.Contains("Api.csproj"));
+            apiModel.ShouldNotBeNull();
+            apiModel.Parent.ShouldNotBeNull();
+            apiModel.Parent.Path.ShouldContain("src");
+
+            // ApiTests should be nested under test/ApiTests, which is under test
+            SolutionPersistence.Model.SolutionProjectModel testModel = model.SolutionProjects
+                .FirstOrDefault(p => p.FilePath.Contains("ApiTests.csproj"));
+            testModel.ShouldNotBeNull();
+            testModel.Parent.ShouldNotBeNull();
+            testModel.Parent.Path.ShouldContain("test");
+
+            // Core (main project) should be at root
+            SolutionPersistence.Model.SolutionProjectModel coreModel = model.SolutionProjects
+                .FirstOrDefault(p => p.FilePath.Contains("Core.csproj"));
+            coreModel.ShouldNotBeNull();
+            coreModel.Parent.ShouldBeNull();
+        }
+
+        [Fact]
         public void SaveSlnx_DuplicateProjectNames_DoesNotThrow()
         {
             var projects = new List<SlnProject>();
