@@ -454,7 +454,7 @@ namespace Microsoft.VisualStudio.SlnGen
 
             SolutionModel solutionModel = new SolutionModel();
 
-            string rootPath = Path.GetDirectoryName(Path.GetFullPath(path)) !;
+            string rootPath = Path.GetFullPath(path);
 
             // Add configurations (build types)
             HashSet<string> solutionConfigurations = Configurations != null && Configurations.Any()
