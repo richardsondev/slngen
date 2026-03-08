@@ -213,17 +213,25 @@ namespace Microsoft.VisualStudio.SlnGen
                 projectFolderLookup.TryGetValue(project, out SolutionFolderModel projectFolder);
 
                 // For projects that share a filename within the same folder, create a
-                // disambiguating sub-folder based on the project's parent directory so
+                // disambiguating sub-folder based on the project's ancestor directories so
                 // the SolutionModel does not reject them as duplicates.
                 if (duplicateNameProjects.Contains(project))
                 {
-                    string parentDir = Path.GetFileName(Path.GetDirectoryName(project.FullPath));
+                    string projectDir = Path.GetDirectoryName(project.FullPath);
+                    string parentDir = Path.GetFileName(projectDir);
+                    string grandParentDir = Path.GetFileName(Path.GetDirectoryName(projectDir));
 
-                    if (!string.IsNullOrWhiteSpace(parentDir))
+                    // Use grandparent/parent to handle cases where duplicate projects
+                    // also share the same immediate parent directory name.
+                    string disambiguator = !string.IsNullOrWhiteSpace(grandParentDir)
+                        ? grandParentDir + "/" + parentDir
+                        : parentDir;
+
+                    if (!string.IsNullOrWhiteSpace(disambiguator))
                     {
                         string subFolderPath = projectFolder != null
-                            ? projectFolder.Path + parentDir + "/"
-                            : "/" + parentDir + "/";
+                            ? projectFolder.Path + disambiguator + "/"
+                            : "/" + disambiguator + "/";
                         projectFolder = solutionModel.AddFolder(subFolderPath);
                     }
                 }

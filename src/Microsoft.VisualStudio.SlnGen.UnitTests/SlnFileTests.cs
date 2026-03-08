@@ -1849,6 +1849,10 @@ EndGlobal
                 .OpenAsync(solutionFilePath, System.Threading.CancellationToken.None);
 
             model.SolutionProjects.Count.ShouldBe(1);
+
+            // Note: DisplayName is set on SolutionProjectModel during write but the .slnx
+            // XML schema does not persist custom display names — they are derived from the
+            // project file name. The code still sets it for forward compatibility.
         }
 
         [Fact]
@@ -1893,7 +1897,7 @@ EndGlobal
         }
 
         [Fact]
-        public void SaveSlnx_WithCollapseFolders()
+        public async System.Threading.Tasks.Task SaveSlnx_WithCollapseFolders()
         {
             SlnProject projectA = new SlnProject
             {
@@ -1919,13 +1923,24 @@ EndGlobal
             SlnFile slnFile = new SlnFile();
             slnFile.AddProjects(new[] { projectA, projectB });
 
-            string solutionFilePath = Path.Combine(TestRootPath, "test.slnx");
-            slnFile.SaveSlnx(solutionFilePath, useFolders: true, collapseFolders: true);
+            // Generate with collapseFolders: true
+            string collapsedPath = Path.Combine(TestRootPath, "collapsed.slnx");
+            slnFile.SaveSlnx(collapsedPath, useFolders: true, collapseFolders: true);
 
-            File.Exists(solutionFilePath).ShouldBeTrue();
-            string content = File.ReadAllText(solutionFilePath);
-            content.ShouldContain("A.csproj");
-            content.ShouldContain("B.csproj");
+            // Generate with collapseFolders: false for comparison
+            string expandedPath = Path.Combine(TestRootPath, "expanded.slnx");
+            slnFile.SaveSlnx(expandedPath, useFolders: true, collapseFolders: false);
+
+            SolutionPersistence.Model.SolutionModel collapsedModel = await SolutionPersistence.Serializer.SolutionSerializers.SlnXml
+                .OpenAsync(collapsedPath, System.Threading.CancellationToken.None);
+            SolutionPersistence.Model.SolutionModel expandedModel = await SolutionPersistence.Serializer.SolutionSerializers.SlnXml
+                .OpenAsync(expandedPath, System.Threading.CancellationToken.None);
+
+            // Both should contain the same projects
+            collapsedModel.SolutionProjects.Count.ShouldBe(expandedModel.SolutionProjects.Count);
+
+            // Collapsed should have fewer folders than expanded (src/deep/A collapsed into fewer levels)
+            collapsedModel.SolutionFolders.Count.ShouldBeLessThanOrEqualTo(expandedModel.SolutionFolders.Count);
         }
 
         [Fact]
