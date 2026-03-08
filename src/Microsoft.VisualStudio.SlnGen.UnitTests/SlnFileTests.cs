@@ -2083,7 +2083,7 @@ EndGlobal
             ProgramArguments programArguments = new ProgramArguments
             {
                 LaunchVisualStudio = new[] { bool.FalseString },
-                UseSlnx = new[] { bool.TrueString },
+                Format = new[] { "slnx" },
             };
 
             TestLogger testLogger = new TestLogger();
@@ -2130,7 +2130,7 @@ EndGlobal
             ProgramArguments programArguments = new ProgramArguments
             {
                 LaunchVisualStudio = new[] { bool.FalseString },
-                UseSlnx = new[] { bool.TrueString },
+                Format = new[] { "slnx" },
                 SolutionFileFullPath = new[] { explicitPath },
             };
 
@@ -2138,7 +2138,7 @@ EndGlobal
 
             (string solutionFileFullPath, int _, int _, Guid _) = SlnFile.GenerateSolutionFile(programArguments, new[] { project }, testLogger);
 
-            // When explicit path is provided, it should be used as-is regardless of --slnx flag
+            // When explicit path is provided, it should be used as-is regardless of --format flag
             solutionFileFullPath.ShouldBe(explicitPath);
         }
 

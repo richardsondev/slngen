@@ -97,7 +97,7 @@ Options:
                                         q[uiet], m[inimal], n[ormal], d[etailed], and diag[nostic].
   --version                           Display version information only.
   --vsversion                         Specifies that a version of Visual Studio should be included in the solution file. When specified with no value, the value will be set to the version of Visual Studio that is used to open the solution.
-  --slnx <true>                       Generate a .slnx (XML-based) solution file instead of a classic .sln file. The generated file requires Visual Studio 17.13+ or .NET 9+ SDK to open.  Default: false
+  --format <sln|slnx>                Choose the format for the solution file: sln or slnx. The slnx format requires Visual Studio 17.13+ or .NET 9+ SDK to open.  Default: sln
   -?|-h|--help                        Show help information.
 ```
 

@@ -297,14 +297,14 @@ Examples:
         public bool Version { get; set; }
 
         /// <summary>
-        /// Gets or sets a value indicating whether to generate a .slnx file instead of a .sln file.
+        /// Gets or sets the solution file format to generate.
         /// </summary>
         [Option(
-            "--slnx",
+            "--format",
             CommandOptionType.MultipleValue,
-            ValueName = "true",
-            Description = "Generate a .slnx (XML-based) solution file instead of a classic .sln file. The generated file requires Visual Studio 17.13+ or .NET 9+ SDK to open.  Default: false")]
-        public string[] UseSlnx { get; set; }
+            ValueName = "sln|slnx",
+            Description = "Choose the format for the solution file: sln or slnx. The slnx format requires Visual Studio 17.13+ or .NET 9+ SDK to open.  Default: sln")]
+        public string[] Format { get; set; }
 
         /// <summary>
         /// Gets or sets the Visual Studio version to include in the solution file header.
@@ -334,15 +334,17 @@ Examples:
 
         /// <summary>
         /// Gets a value indicating whether or not to generate a .slnx file instead of a .sln file.
+        /// The CLI <c>--format slnx</c> flag takes precedence over the MSBuild property.
         /// </summary>
         /// <param name="slnGenUseSlnxPropertyValue">The SlnGenUseSlnx property value if it exists.</param>
         /// <returns>true if a .slnx file should be generated, otherwise false.</returns>
         public bool EnableSlnx(string slnGenUseSlnxPropertyValue)
         {
-            bool? enableSlnx = TryGetBoolean(UseSlnx);
-            if (enableSlnx != null)
+            string format = Format?.LastOrDefault();
+
+            if (!string.IsNullOrWhiteSpace(format))
             {
-                return enableSlnx.Value;
+                return string.Equals(format, "slnx", StringComparison.OrdinalIgnoreCase);
             }
 
             if (bool.TryParse(slnGenUseSlnxPropertyValue, out bool result))

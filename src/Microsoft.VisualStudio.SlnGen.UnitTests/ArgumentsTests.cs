@@ -114,8 +114,9 @@ namespace Microsoft.VisualStudio.SlnGen.UnitTests
         }
 
         [Theory]
-        [InlineData(new[] { "true" }, "false", true)]
-        [InlineData(new[] { "false" }, "true", false)]
+        [InlineData(new[] { "slnx" }, "false", true)]
+        [InlineData(new[] { "sln" }, "true", false)]
+        [InlineData(new[] { "SLNX" }, "false", true)]
         [InlineData(null, "true", true)]
         [InlineData(null, "false", false)]
         [InlineData(null, "True", true)]
@@ -123,12 +124,12 @@ namespace Microsoft.VisualStudio.SlnGen.UnitTests
         [InlineData(null, "", false)]
         [InlineData(null, "invalid", false)]
         [InlineData(new string[0], "true", true)]
-        [InlineData(new[] { "true", "false" }, "true", false)]
-        public void EnableSlnx(string[] useSlnx, string slnGenUseSlnxPropertyValue, bool expected)
+        [InlineData(new[] { "sln", "slnx" }, "false", true)]
+        public void EnableSlnx(string[] format, string slnGenUseSlnxPropertyValue, bool expected)
         {
             ProgramArguments arguments = new ProgramArguments
             {
-                UseSlnx = useSlnx,
+                Format = format,
             };
 
             arguments.EnableSlnx(slnGenUseSlnxPropertyValue).ShouldBe(expected);

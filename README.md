@@ -33,7 +33,7 @@ SlnGen supports generating `.slnx` files — the new XML-based solution format i
 ### CLI Usage
 
 ```
-slngen --slnx true
+slngen --format slnx
 ```
 
 ### MSBuild Property
