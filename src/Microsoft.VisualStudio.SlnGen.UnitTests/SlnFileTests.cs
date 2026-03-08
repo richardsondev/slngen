@@ -1308,7 +1308,7 @@ EndGlobal
             StringBuilderTextWriter writer = new (new StringBuilder(), new List<string>());
 
             slnFile.AddProjects(projects);
-            slnFile.Save(solutionFilePath, writer, useFolders: true, logger);
+            SlnSolutionWriter.WriteCore(slnFile, solutionFilePath, writer, new SolutionWriteOptions { UseFolders = true, Logger = logger });
 
             logger.Errors.Count.ShouldBe(0);
 
@@ -1342,7 +1342,7 @@ EndGlobal
 
             string solutionFilePath = Path.Combine(TestRootPath, "sample.sln");
             slnFile.AddProjects([project]);
-            slnFile.Save(solutionFilePath, writer, useFolders: true, logger, collapseFolders: true);
+            SlnSolutionWriter.WriteCore(slnFile, solutionFilePath, writer, new SolutionWriteOptions { UseFolders = true, CollapseFolders = true, Logger = logger });
 
             logger.Errors.Count.ShouldBe(0);
             logger.Warnings.Count.ShouldBe(0);
