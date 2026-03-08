@@ -1,0 +1,18 @@
+<Project Sdk="Microsoft.Build.Traversal">
+  <!--
+    Integration test traversal project.
+    SlnGen is invoked against this file to generate a .sln containing all
+    the child projects below. Each child targets a specific .NET version so
+    we can validate SDK compatibility end-to-end.
+  -->
+  <ItemGroup>
+    <ProjectReference Include="Net8App\Net8App.csproj" />
+    <ProjectReference Include="Net9App\Net9App.csproj" />
+    <ProjectReference Include="Net10App\Net10App.csproj" />
+    <ProjectReference Include="Net11App\Net11App.csproj" />
+    <ProjectReference Include="Net8Lib\Net8Lib.csproj" />
+    <ProjectReference Include="Net9Lib\Net9Lib.csproj" />
+    <ProjectReference Include="Net10Lib\Net10Lib.csproj" />
+    <ProjectReference Include="Net11Lib\Net11Lib.csproj" />
+  </ItemGroup>
+</Project>

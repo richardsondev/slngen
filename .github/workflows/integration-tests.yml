@@ -1,0 +1,59 @@
+name: Integration Tests
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'src/**'
+      - 'test/integration/**'
+      - 'Directory.Build.props'
+      - 'Directory.Build.targets'
+      - 'Directory.Packages.props'
+      - 'global.json'
+      - '.github/workflows/integration-tests.yml'
+  pull_request:
+    branches: [main]
+    paths:
+      - 'src/**'
+      - 'test/integration/**'
+      - 'Directory.Build.props'
+      - 'Directory.Build.targets'
+      - 'Directory.Packages.props'
+      - 'global.json'
+      - '.github/workflows/integration-tests.yml'
+  workflow_dispatch:
+
+concurrency:
+  group: integration-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  integration-test:
+    name: SDK ${{ matrix.sdk }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - sdk: "8"
+            dockerfile: Dockerfile.sdk8
+          - sdk: "9"
+            dockerfile: Dockerfile.sdk9
+          - sdk: "10"
+            dockerfile: Dockerfile.sdk10
+          - sdk: "11-preview"
+            dockerfile: Dockerfile.sdk11-preview
+
+    # Preview SDKs are non-fatal automatically
+    continue-on-error: ${{ contains(matrix.sdk, 'preview') }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Build & test (SDK ${{ matrix.sdk }})
+        run: |
+          docker build \
+            -f test/integration/${{ matrix.dockerfile }} \
+            -t slngen-test-sdk${{ matrix.sdk }} \
+            .
