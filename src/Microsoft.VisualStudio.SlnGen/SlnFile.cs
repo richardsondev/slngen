@@ -563,7 +563,59 @@ namespace Microsoft.VisualStudio.SlnGen
                 }
             }
 
+            // Build a reverse lookup from project → folder for O(1) access instead of
+            // iterating folderMap for every project (which is O(P × F)).
+            Dictionary<SlnProject, SolutionFolderModel> projectFolderLookup = new Dictionary<SlnProject, SolutionFolderModel>();
+
+            foreach (var kvp in folderMap)
+            {
+                foreach (SlnProject proj in kvp.Key.Projects)
+                {
+                    projectFolderLookup[proj] = kvp.Value;
+                }
+            }
+
             // Add projects
+            // Pre-detect duplicate project names per target folder so we can disambiguate.
+            // SolutionModel.AddProject derives the project name from the filename and throws
+            // if two projects with the same name exist in the same folder.
+            Dictionary<string, List<SlnProject>> projectsByFolderAndName = new Dictionary<string, List<SlnProject>>(StringComparer.OrdinalIgnoreCase);
+
+            foreach (SlnProject project in sortedProjects)
+            {
+                if (project.IsSharedProject)
+                {
+                    continue;
+                }
+
+                string projectName = Path.GetFileNameWithoutExtension(project.FullPath);
+                projectFolderLookup.TryGetValue(project, out SolutionFolderModel targetFolder);
+
+                string folderKey = targetFolder?.Path ?? "<root>";
+                string key = folderKey + "|" + projectName;
+
+                if (!projectsByFolderAndName.TryGetValue(key, out List<SlnProject> group))
+                {
+                    group = new List<SlnProject>();
+                    projectsByFolderAndName[key] = group;
+                }
+
+                group.Add(project);
+            }
+
+            HashSet<SlnProject> duplicateNameProjects = new HashSet<SlnProject>();
+
+            foreach (var group in projectsByFolderAndName.Values)
+            {
+                if (group.Count > 1)
+                {
+                    foreach (SlnProject p in group)
+                    {
+                        duplicateNameProjects.Add(p);
+                    }
+                }
+            }
+
             foreach (SlnProject project in sortedProjects)
             {
                 if (project.IsSharedProject)
@@ -574,17 +626,21 @@ namespace Microsoft.VisualStudio.SlnGen
                 string projectRelativePath = project.FullPath.ToRelativePath(rootPath);
 
                 // Determine the parent folder for this project
-                SolutionFolderModel projectFolder = null;
+                projectFolderLookup.TryGetValue(project, out SolutionFolderModel projectFolder);
 
-                if (hierarchy != null)
+                // For projects that share a filename within the same folder, create a
+                // disambiguating sub-folder based on the project's parent directory so
+                // the SolutionModel does not reject them as duplicates.
+                if (duplicateNameProjects.Contains(project))
                 {
-                    foreach (var kvp in folderMap)
+                    string parentDir = Path.GetFileName(Path.GetDirectoryName(project.FullPath));
+
+                    if (!string.IsNullOrWhiteSpace(parentDir))
                     {
-                        if (kvp.Key.Projects.Contains(project))
-                        {
-                            projectFolder = kvp.Value;
-                            break;
-                        }
+                        string subFolderPath = projectFolder != null
+                            ? projectFolder.Path + parentDir + "/"
+                            : "/" + parentDir + "/";
+                        projectFolder = solutionModel.AddFolder(subFolderPath);
                     }
                 }
 

@@ -1929,6 +1929,71 @@ EndGlobal
         }
 
         [Fact]
+        public void SaveSlnx_DuplicateProjectNames_DoesNotThrow()
+        {
+            var projects = new List<SlnProject>();
+
+            for (int i = 0; i < 5; i++)
+            {
+                projects.Add(new SlnProject
+                {
+                    Configurations = new[] { "Debug" },
+                    FullPath = Path.Combine(TestRootPath, $"dir{i}", "SameName.csproj"),
+                    Name = "SameName",
+                    Platforms = new[] { "AnyCPU" },
+                    ProjectGuid = Guid.NewGuid(),
+                    ProjectTypeGuid = Guid.NewGuid(),
+                    IsMainProject = i == 0,
+                });
+            }
+
+            SlnFile slnFile = new SlnFile();
+            slnFile.AddProjects(projects);
+
+            string solutionFilePath = Path.Combine(TestRootPath, "dupes.slnx");
+            slnFile.SaveSlnx(solutionFilePath, useFolders: false);
+
+            File.Exists(solutionFilePath).ShouldBeTrue();
+            string content = File.ReadAllText(solutionFilePath);
+
+            for (int i = 0; i < 5; i++)
+            {
+                content.ShouldContain($"dir{i}");
+            }
+        }
+
+        [Fact]
+        public async System.Threading.Tasks.Task SaveSlnx_DuplicateProjectNames_AllProjectsRoundTrip()
+        {
+            var projects = new List<SlnProject>();
+
+            for (int i = 0; i < 3; i++)
+            {
+                projects.Add(new SlnProject
+                {
+                    Configurations = new[] { "Debug" },
+                    FullPath = Path.Combine(TestRootPath, $"lib{i}", "MyLib.csproj"),
+                    Name = "MyLib",
+                    Platforms = new[] { "AnyCPU" },
+                    ProjectGuid = Guid.NewGuid(),
+                    ProjectTypeGuid = Guid.NewGuid(),
+                    IsMainProject = i == 0,
+                });
+            }
+
+            SlnFile slnFile = new SlnFile();
+            slnFile.AddProjects(projects);
+
+            string solutionFilePath = Path.Combine(TestRootPath, "dupes_rt.slnx");
+            slnFile.SaveSlnx(solutionFilePath, useFolders: false);
+
+            SolutionPersistence.Model.SolutionModel model = await SolutionPersistence.Serializer.SolutionSerializers.SlnXml
+                .OpenAsync(solutionFilePath, System.Threading.CancellationToken.None);
+
+            model.SolutionProjects.Count.ShouldBe(3);
+        }
+
+        [Fact]
         public void GenerateSolutionFile_WithSlnxFlag_CreatesSlnxFile()
         {
             Project project = ProjectCreator.Templates.SdkCsproj(path: GetTempProjectFile("ProjectA"))
