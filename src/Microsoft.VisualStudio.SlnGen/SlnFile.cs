@@ -128,12 +128,20 @@ namespace Microsoft.VisualStudio.SlnGen
         public Version VisualStudioVersion { get; set; }
 
         /// <summary>
-        /// Gets the project list for use by solution writers.
+        /// Gets the project list for use by <see cref="SlnxSolutionWriter" />.
+        /// The public <see cref="Projects" /> property is sufficient for reading, but the writer
+        /// needs access to per-project metadata (configurations, platforms, main project flag)
+        /// that is only available on the underlying <see cref="SlnProject" /> objects.
+        /// This returns the existing list by reference — no copy is made.
         /// </summary>
         internal IReadOnlyList<SlnProject> ProjectsInternal => _projects;
 
         /// <summary>
-        /// Gets the solution item entries keyed by folder name, for use by solution writers.
+        /// Gets the solution item entries keyed by folder name, for use by <see cref="SlnxSolutionWriter" />.
+        /// The public <see cref="SolutionItems" /> property transforms entries into a
+        /// <c>IReadOnlyDictionary&lt;string, IReadOnlyCollection&lt;string&gt;&gt;</c>, losing the
+        /// <see cref="SlnItem" /> type needed by the writer to enumerate per-folder items.
+        /// This returns the existing dictionary by reference — no copy is made.
         /// </summary>
         internal IReadOnlyDictionary<string, SlnItem> SolutionItemEntries => _solutionItems;
 
@@ -167,9 +175,9 @@ namespace Microsoft.VisualStudio.SlnGen
 
                 var firstProjectName = firstProject.GetPropertyValueOrDefault(MSBuildPropertyNames.SlnGenProjectName, Path.GetFileName(firstProject.FullPath));
 
-                string slnGenFormatPropertyValue = firstProject.GetPropertyValueOrDefault(MSBuildPropertyNames.SlnGenFormat, "sln");
+                string slnGenFormatPropertyValue = firstProject.GetPropertyValueOrDefault(MSBuildPropertyNames.SlnGenFormat, SolutionFileExtensions.SlnFormatName);
                 bool useSlnx = arguments.EnableSlnx(slnGenFormatPropertyValue);
-                string solutionFileName = Path.ChangeExtension(firstProjectName, useSlnx ? "slnx" : "sln");
+                string solutionFileName = Path.ChangeExtension(firstProjectName, useSlnx ? SolutionFileExtensions.Slnx : SolutionFileExtensions.Sln);
 
                 solutionFileFullPath = Path.Combine(solutionDirectoryFullPath!, solutionFileName);
             }
@@ -236,7 +244,7 @@ namespace Microsoft.VisualStudio.SlnGen
 
             if (!logger.HasLoggedErrors)
             {
-                if (solutionFileFullPath.EndsWith(".slnx", StringComparison.OrdinalIgnoreCase))
+                if (SolutionFileExtensions.IsSlnxFile(solutionFileFullPath))
                 {
                     solution.SaveSlnx(solutionFileFullPath, enableFolders, logger, arguments.EnableCollapseFolders());
                 }
@@ -262,7 +270,7 @@ namespace Microsoft.VisualStudio.SlnGen
             projectGuidsByPath = default;
 
             // .slnx files don't use project GUIDs, so skip parsing for them
-            if (path.EndsWith(".slnx", StringComparison.OrdinalIgnoreCase))
+            if (SolutionFileExtensions.IsSlnxFile(path))
             {
                 return false;
             }
@@ -450,37 +458,12 @@ namespace Microsoft.VisualStudio.SlnGen
         /// <param name="collapseFolders">An optional value indicating whether or not folders containing a single item should be collapsed into their parent folder.</param>
         public void SaveSlnx(string path, bool useFolders, ISlnGenLogger logger = null, bool collapseFolders = false)
         {
-            new SlnxSolutionWriter().Write(this, path, useFolders, collapseFolders, logger);
-        }
+            HashSet<string> solutionPlatforms = Platforms != null && Platforms.Any()
+                ? new HashSet<string>(GetValidSolutionPlatforms(Platforms), StringComparer.OrdinalIgnoreCase)
+                : new HashSet<string>(GetValidSolutionPlatforms(_projects.SelectMany(i => i.Platforms)), StringComparer.OrdinalIgnoreCase);
 
-        /// <summary>
-        /// Normalizes platform names to valid Visual Studio solution platform values.
-        /// </summary>
-        /// <param name="platforms">The platform names to normalize.</param>
-        /// <returns>An <see cref="IEnumerable{String}" /> of valid solution platform names.</returns>
-        internal static IEnumerable<string> GetValidSolutionPlatforms(IEnumerable<string> platforms)
-        {
-            List<string> values = platforms
-                .Select(i => i.ToSolutionPlatform())
-                .Select(platform =>
-                {
-                    return platform.ToLowerInvariant() switch
-                    {
-                        "any cpu" => platform,
-                        "x64" => platform,
-                        "x86" => platform,
-                        "amd64" => "x64",
-                        "win32" => "x86",
-                        "arm" => platform,
-                        "arm64" => platform,
-                        _ => null
-                    };
-                })
-                .Where(i => i != null)
-                .OrderBy(i => i)
-                .ToList();
-
-            return values.Any() ? values : new List<string> { "Any CPU" };
+            ISolutionPersistenceWriter writer = new SlnxSolutionWriter(solutionPlatforms);
+            writer.Write(this, path, useFolders, collapseFolders, logger);
         }
 
         /// <summary>
@@ -753,6 +736,31 @@ namespace Microsoft.VisualStudio.SlnGen
             }
 
             return "4";
+        }
+
+        private IEnumerable<string> GetValidSolutionPlatforms(IEnumerable<string> platforms)
+        {
+            List<string> values = platforms
+                .Select(i => i.ToSolutionPlatform())
+                .Select(platform =>
+                {
+                    return platform.ToLowerInvariant() switch
+                    {
+                        "any cpu" => platform,
+                        "x64" => platform,
+                        "x86" => platform,
+                        "amd64" => "x64",
+                        "win32" => "x86",
+                        "arm" => platform,
+                        "arm64" => platform,
+                        _ => null
+                    };
+                })
+                .Where(i => i != null)
+                .OrderBy(i => i)
+                .ToList();
+
+            return values.Any() ? values : new List<string> { "Any CPU" };
         }
 
         private bool TryGetProjectSolutionConfiguration(string solutionConfiguration, SlnProject project, bool alwaysBuild, out string projectSolutionConfiguration)

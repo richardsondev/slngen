@@ -344,12 +344,12 @@ Examples:
 
             if (!string.IsNullOrWhiteSpace(format))
             {
-                return string.Equals(format, "slnx", StringComparison.OrdinalIgnoreCase);
+                return string.Equals(format, SolutionFileExtensions.SlnxFormatName, StringComparison.OrdinalIgnoreCase);
             }
 
             if (!string.IsNullOrWhiteSpace(slnGenFormatPropertyValue))
             {
-                return string.Equals(slnGenFormatPropertyValue, "slnx", StringComparison.OrdinalIgnoreCase);
+                return string.Equals(slnGenFormatPropertyValue, SolutionFileExtensions.SlnxFormatName, StringComparison.OrdinalIgnoreCase);
             }
 
             return false;

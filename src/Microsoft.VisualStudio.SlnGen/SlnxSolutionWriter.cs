@@ -13,18 +13,23 @@ using System.Threading;
 namespace Microsoft.VisualStudio.SlnGen
 {
     /// <summary>
-    /// Writes a Visual Studio solution in the XML-based .slnx format.
+    /// Writes a Visual Studio solution in the XML-based .slnx format using the
+    /// Microsoft.VisualStudio.SolutionPersistence library.
     /// </summary>
-    internal sealed class SlnxSolutionWriter
+    internal sealed class SlnxSolutionWriter : ISolutionPersistenceWriter
     {
+        private readonly IReadOnlyCollection<string> _solutionPlatforms;
+
         /// <summary>
-        /// Writes the specified solution to a .slnx file at the given path.
+        /// Initializes a new instance of the <see cref="SlnxSolutionWriter" /> class.
         /// </summary>
-        /// <param name="solution">The solution model to write.</param>
-        /// <param name="path">The full path to the output .slnx file.</param>
-        /// <param name="useFolders">Whether to create hierarchical solution folders.</param>
-        /// <param name="collapseFolders">Whether to collapse single-item folders into their parent.</param>
-        /// <param name="logger">An optional logger for warnings.</param>
+        /// <param name="solutionPlatforms">The pre-computed valid solution platforms.</param>
+        public SlnxSolutionWriter(IReadOnlyCollection<string> solutionPlatforms)
+        {
+            _solutionPlatforms = solutionPlatforms ?? throw new ArgumentNullException(nameof(solutionPlatforms));
+        }
+
+        /// <inheritdoc />
         public void Write(SlnFile solution, string path, bool useFolders, bool collapseFolders, ISlnGenLogger logger = null)
         {
             string directoryName = Path.GetDirectoryName(path);
@@ -47,11 +52,7 @@ namespace Microsoft.VisualStudio.SlnGen
                 solutionModel.AddBuildType(configuration);
             }
 
-            HashSet<string> solutionPlatforms = solution.Platforms != null && solution.Platforms.Any()
-                ? new HashSet<string>(SlnFile.GetValidSolutionPlatforms(solution.Platforms), StringComparer.OrdinalIgnoreCase)
-                : new HashSet<string>(SlnFile.GetValidSolutionPlatforms(solution.ProjectsInternal.SelectMany(i => i.Platforms)), StringComparer.OrdinalIgnoreCase);
-
-            foreach (string platform in solutionPlatforms)
+            foreach (string platform in _solutionPlatforms)
             {
                 solutionModel.AddPlatform(platform);
             }
