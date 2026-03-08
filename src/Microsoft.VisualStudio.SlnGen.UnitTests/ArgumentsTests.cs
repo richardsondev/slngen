@@ -114,25 +114,25 @@ namespace Microsoft.VisualStudio.SlnGen.UnitTests
         }
 
         [Theory]
-        [InlineData(new[] { "slnx" }, "false", true)]
-        [InlineData(new[] { "sln" }, "true", false)]
-        [InlineData(new[] { "SLNX" }, "false", true)]
-        [InlineData(null, "true", true)]
-        [InlineData(null, "false", false)]
-        [InlineData(null, "True", true)]
+        [InlineData(new[] { "slnx" }, "sln", true)]
+        [InlineData(new[] { "sln" }, "slnx", false)]
+        [InlineData(new[] { "SLNX" }, "sln", true)]
+        [InlineData(null, "slnx", true)]
+        [InlineData(null, "sln", false)]
+        [InlineData(null, "SLNX", true)]
         [InlineData(null, null, false)]
         [InlineData(null, "", false)]
         [InlineData(null, "invalid", false)]
-        [InlineData(new string[0], "true", true)]
-        [InlineData(new[] { "sln", "slnx" }, "false", true)]
-        public void EnableSlnx(string[] format, string slnGenUseSlnxPropertyValue, bool expected)
+        [InlineData(new string[0], "slnx", true)]
+        [InlineData(new[] { "sln", "slnx" }, "sln", true)]
+        public void EnableSlnx(string[] format, string slnGenFormatPropertyValue, bool expected)
         {
             ProgramArguments arguments = new ProgramArguments
             {
                 Format = format,
             };
 
-            arguments.EnableSlnx(slnGenUseSlnxPropertyValue).ShouldBe(expected);
+            arguments.EnableSlnx(slnGenFormatPropertyValue).ShouldBe(expected);
         }
 
         [Fact]

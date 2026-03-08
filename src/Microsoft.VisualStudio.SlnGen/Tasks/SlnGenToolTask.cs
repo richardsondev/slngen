@@ -198,9 +198,11 @@ namespace Microsoft.VisualStudio.SlnGen.Tasks
                 commandLineBuilder.AppendSwitch("--binarylogger");
             }
 
-            if (string.Equals(GetPropertyValue(MSBuildPropertyNames.SlnGenUseSlnx), bool.TrueString, StringComparison.OrdinalIgnoreCase))
+            string slnGenFormat = GetPropertyValue(MSBuildPropertyNames.SlnGenFormat);
+
+            if (!string.IsNullOrWhiteSpace(slnGenFormat))
             {
-                commandLineBuilder.AppendSwitchIfNotNull("--format:", "slnx");
+                commandLineBuilder.AppendSwitchIfNotNull("--format:", slnGenFormat);
             }
 
             if (Projects?.Length > 0)

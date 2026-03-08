@@ -167,8 +167,8 @@ namespace Microsoft.VisualStudio.SlnGen
 
                 var firstProjectName = firstProject.GetPropertyValueOrDefault(MSBuildPropertyNames.SlnGenProjectName, Path.GetFileName(firstProject.FullPath));
 
-                string slnGenUseSlnxPropertyValue = firstProject.GetPropertyValueOrDefault(MSBuildPropertyNames.SlnGenUseSlnx, "false");
-                bool useSlnx = arguments.EnableSlnx(slnGenUseSlnxPropertyValue);
+                string slnGenFormatPropertyValue = firstProject.GetPropertyValueOrDefault(MSBuildPropertyNames.SlnGenFormat, "sln");
+                bool useSlnx = arguments.EnableSlnx(slnGenFormatPropertyValue);
                 string solutionFileName = Path.ChangeExtension(firstProjectName, useSlnx ? "slnx" : "sln");
 
                 solutionFileFullPath = Path.Combine(solutionDirectoryFullPath!, solutionFileName);

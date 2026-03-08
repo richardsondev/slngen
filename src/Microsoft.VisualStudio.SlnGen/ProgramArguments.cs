@@ -336,9 +336,9 @@ Examples:
         /// Gets a value indicating whether or not to generate a .slnx file instead of a .sln file.
         /// The CLI <c>--format slnx</c> flag takes precedence over the MSBuild property.
         /// </summary>
-        /// <param name="slnGenUseSlnxPropertyValue">The SlnGenUseSlnx property value if it exists.</param>
+        /// <param name="slnGenFormatPropertyValue">The SlnGenFormat property value if it exists (e.g. "slnx").</param>
         /// <returns>true if a .slnx file should be generated, otherwise false.</returns>
-        public bool EnableSlnx(string slnGenUseSlnxPropertyValue)
+        public bool EnableSlnx(string slnGenFormatPropertyValue)
         {
             string format = Format?.LastOrDefault();
 
@@ -347,9 +347,9 @@ Examples:
                 return string.Equals(format, "slnx", StringComparison.OrdinalIgnoreCase);
             }
 
-            if (bool.TryParse(slnGenUseSlnxPropertyValue, out bool result))
+            if (!string.IsNullOrWhiteSpace(slnGenFormatPropertyValue))
             {
-                return result;
+                return string.Equals(slnGenFormatPropertyValue, "slnx", StringComparison.OrdinalIgnoreCase);
             }
 
             return false;

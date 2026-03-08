@@ -40,14 +40,14 @@ slngen --format slnx
 
 ```xml
 <PropertyGroup>
-  <SlnGenUseSlnx>true</SlnGenUseSlnx>
+  <SlnGenFormat>slnx</SlnGenFormat>
 </PropertyGroup>
 ```
 
 Or pass it on the command line:
 
 ```
-MSBuild /Restore /t:SlnGen /p:SlnGenUseSlnx=true
+MSBuild /Restore /t:SlnGen /p:SlnGenFormat=slnx
 ```
 
 > **Note:** The `.slnx` format is still relatively new. If your team includes members on older versions of Visual Studio or the .NET SDK, you may want to continue using the classic `.sln` format.

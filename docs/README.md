@@ -133,7 +133,7 @@ The following properties only apply when using SlnGen as an MSBuild target.
 | `SlnGenInheritGlobalProperties` | Indicates whether or not all global variables specified when loading the initial project should be passed around when loading project references. | `true` or `false` | `true` |
 | `SlnGenGlobalPropertiesToRemove` | Specifies a list of inherited global properties to remove when loading projects. | | |
 | `SlnGenBinLog` | Indicates whether or not SlnGen should emit a binary log. | `true` or `false` | `false` |
-| `SlnGenUseSlnx` | Indicates whether or not the generated solution file should use the `.slnx` (XML-based) format instead of the traditional `.sln` format. The generated file requires Visual Studio 17.13+ or .NET 9+ SDK to open. | `true` or `false` | `false` |
+| `SlnGenFormat` | Specifies the solution file format to generate. The slnx format requires Visual Studio 17.13+ or .NET 9+ SDK to open. | `sln` or `slnx` | `sln` |
 
 
 Command-line argument
